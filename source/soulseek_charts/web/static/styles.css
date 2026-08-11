@@ -1,0 +1,317 @@
+/* Colour roles come from the validated data-viz palette. Light values are the
+   base; dark values are re-declared under both the OS media query and the
+   explicit theme stamp, so the toggle wins in either direction. */
+:root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page-plane: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --gridline: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.1);
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --bar-fill: #86b6ef;
+    --delta-up: #006300;
+    --delta-down: #d03b3b;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --surface-1: #1a1a19;
+        --page-plane: #0d0d0d;
+        --text-primary: #ffffff;
+        --text-secondary: #c3c2b7;
+        --text-muted: #898781;
+        --gridline: #2c2c2a;
+        --baseline: #383835;
+        --border: rgba(255, 255, 255, 0.1);
+        --series-1: #3987e5;
+        --series-2: #d95926;
+        --bar-fill: #184f95;
+        --delta-up: #0ca30c;
+        --delta-down: #e66767;
+    }
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page-plane: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --gridline: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --bar-fill: #184f95;
+    --delta-up: #0ca30c;
+    --delta-down: #e66767;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+a {
+    color: inherit;
+}
+
+.page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 16px 64px;
+}
+
+.masthead {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.masthead h1 {
+    font-size: 22px;
+    margin: 0;
+}
+
+.masthead h1 a {
+    text-decoration: none;
+}
+
+.masthead nav {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    font-size: 14px;
+}
+
+.tagline {
+    color: var(--text-secondary);
+    margin: 0 0 24px;
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+button {
+    font: inherit;
+    color: var(--text-primary);
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+button:hover {
+    border-color: var(--baseline);
+}
+
+button[aria-pressed="true"] {
+    background: var(--series-1);
+    border-color: var(--series-1);
+    color: #ffffff;
+}
+
+.card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.card h2 {
+    font-size: 17px;
+    margin: 0 0 4px;
+}
+
+.card .caption {
+    color: var(--text-secondary);
+    margin: 0 0 16px;
+    font-size: 13px;
+}
+
+/* Wide content scrolls inside its own container so the page never does. */
+.table-scroll {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+
+th {
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding: 0 8px 8px;
+    white-space: nowrap;
+}
+
+td {
+    padding: 7px 8px;
+    border-top: 1px solid var(--gridline);
+    white-space: nowrap;
+}
+
+td.name {
+    white-space: normal;
+    min-width: 160px;
+}
+
+td.position {
+    color: var(--text-muted);
+    width: 34px;
+}
+
+.numeric {
+    text-align: right;
+}
+
+/* The bar is the magnitude encoding: one hue, rounded data-end at the
+   baseline, never a rainbow across rows. */
+.bar-cell {
+    width: 34%;
+    min-width: 90px;
+}
+
+.bar {
+    height: 10px;
+    background: var(--bar-fill);
+    border-radius: 0 4px 4px 0;
+    min-width: 2px;
+}
+
+/* On a narrow screen the bar would push searches, listeners and movement off
+   the edge. The numbers matter more than the bar, so the bar goes. */
+@media (max-width: 640px) {
+    .bar-cell {
+        display: none;
+    }
+
+    td.name {
+        min-width: 0;
+    }
+}
+
+.movement {
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.movement.up {
+    color: var(--delta-up);
+}
+
+.movement.down {
+    color: var(--delta-down);
+}
+
+.movement.flat,
+.movement.new,
+.movement.re_entry {
+    color: var(--text-secondary);
+}
+
+.legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend i {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.chart-frame {
+    position: relative;
+}
+
+.chart-frame svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    opacity: 0;
+    transition: opacity 0.1s;
+    white-space: nowrap;
+}
+
+.tooltip.visible {
+    opacity: 1;
+}
+
+details {
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.empty {
+    color: var(--text-secondary);
+    padding: 12px 0;
+}
+
+.prose p,
+.prose li {
+    color: var(--text-secondary);
+    max-width: 70ch;
+}
+
+.prose h2 {
+    margin-top: 28px;
+}

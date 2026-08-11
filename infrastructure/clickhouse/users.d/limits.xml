@@ -1,0 +1,10 @@
+<clickhouse>
+    <profiles>
+        <default>
+            <!-- Ceiling for a single query, so one heavy chart aggregation
+                 cannot exhaust the server budget set in config.d/limits.xml. -->
+            <max_memory_usage>2000000000</max_memory_usage>
+            <max_execution_time>30</max_execution_time>
+        </default>
+    </profiles>
+</clickhouse>

@@ -1,0 +1,111 @@
+# Defaults let the stack start without a .env file (lint, tests, fresh migrate).
+# A real .env overrides them through Compose variable interpolation.
+x-clickhouse-environment: &clickhouse_environment
+  CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-clickhouse}
+  CLICKHOUSE_PORT: ${CLICKHOUSE_PORT:-8123}
+  CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-soulseek_charts}
+  CLICKHOUSE_USER: ${CLICKHOUSE_USER:-soulseek_charts}
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-local_development_only}
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: soulseek_charts_clickhouse
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-soulseek_charts}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-soulseek_charts}
+      # An empty password makes the entrypoint disable network access entirely.
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-local_development_only}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      # Mounted as individual files: the entrypoint writes its own generated
+      # files into these directories, so they must stay writable.
+      - ./infrastructure/clickhouse/config.d/limits.xml:/etc/clickhouse-server/config.d/limits.xml:ro
+      - ./infrastructure/clickhouse/users.d/limits.xml:/etc/clickhouse-server/users.d/limits.xml:ro
+    ports:
+      - "127.0.0.1:8123:8123"
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    ulimits:
+      # ClickHouse opens a large number of data part files and refuses to start on a low limit.
+      nofile:
+        soft: 262144
+        hard: 262144
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8G
+        reservations:
+          memory: 4G
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  collector:
+    build:
+      context: .
+      dockerfile: infrastructure/python/Dockerfile
+    container_name: soulseek_charts_collector
+    restart: unless-stopped
+    command: python -m soulseek_charts.collector
+    env_file:
+      # Optional so lint, test and migration runs do not require real credentials.
+      - path: .env
+        required: false
+    environment: *clickhouse_environment
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      # A long-running daemon fills the disk with logs unless rotation is bounded.
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/python/Dockerfile
+    container_name: soulseek_charts_api
+    restart: unless-stopped
+    command: uvicorn soulseek_charts.api.application:application --host 0.0.0.0 --port 8000
+    env_file:
+      - path: .env
+        required: false
+    environment: *clickhouse_environment
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+volumes:
+  clickhouse_data:

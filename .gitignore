@@ -1,15 +1,36 @@
 # Credentials: a Soulseek account password lives here.
 .env
+*.local
 
 # Collected data and the pseudonym key. The key is a credential: with it, the
 # archive can be reduced back to real nicknames.
-data/
-results/
+#
+# Anchored to the repository root: a bare "data/" would also swallow
+# tests/data/, which holds the labelled parser set.
+/data/
+/results/
+/volumes/
 *.jsonl
 *.jsonl.gz
 *.db
+*.sqlite
+*.log
 
-# Built binaries
-soulseek-charts
-soulseek-resolve
-collector
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local tooling
+.claude/settings.local.json
+.claude/*.tmp.*
+
+# Dashboard screenshots
+screenshots/

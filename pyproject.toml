@@ -1,0 +1,57 @@
+[project]
+name = "soulseek-charts"
+version = "0.1.0"
+description = "A Soulseek node that records what the network is looking for, and the tools to make sense of it"
+requires-python = ">=3.12"
+license = "GPL-3.0-only"
+dependencies = [
+    # GPL-3.0-or-later. Chosen in stage 1 as the only maintained Python client
+    # that actually joins the distributed network. Its licence is why this
+    # project is GPL-3.0 as well.
+    "aioslsk>=1.6",
+    "clickhouse-connect>=0.8",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+development = [
+    "httpx>=0.27",
+    "mypy>=1.11",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["source"]
+
+[tool.setuptools.package-data]
+# Migration files are data, not modules, and must ship inside the package.
+"soulseek_charts.storage" = ["migrations/*.sql"]
+"soulseek_charts.web" = ["static/*"]
+
+[tool.ruff]
+line-length = 100
+src = ["source", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "source"
+
+[[tool.mypy.overrides]]
+module = ["clickhouse_connect.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["source"]
+asyncio_mode = "auto"

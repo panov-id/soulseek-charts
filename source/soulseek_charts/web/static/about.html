@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>About — soulseek-charts</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="page">
+    <header class="masthead">
+        <h1><a href="/">soulseek-charts</a></h1>
+        <nav>
+            <a href="/">Charts</a>
+            <button id="theme-toggle" type="button" title="Switch theme">Theme</button>
+        </nav>
+    </header>
+
+    <main class="prose">
+        <h2>What this is</h2>
+        <p>
+            soulseek-charts runs a node inside the Soulseek peer-to-peer network. The network
+            distributes every search request through a tree of connected clients, and each client
+            passes the requests it receives on to its children. Our node does that job and, while
+            doing it, records what went past.
+        </p>
+        <p>
+            The result is a chart of demand rather than of sales or streams: what people went
+            looking for, whether or not they found it.
+        </p>
+
+        <h2>What is collected</h2>
+        <ul>
+            <li>The text of search requests passing through the node, with the time we saw them.</li>
+            <li>An artist, album and track parsed out of that text, with a confidence score.</li>
+        </ul>
+
+        <h2>What is not collected</h2>
+        <ul>
+            <li>
+                <strong>No usernames.</strong> A username arrives with every request and is
+                replaced immediately by a keyed hash. The salt behind that hash is rotated every
+                day, so the same person's activity cannot be linked from one day to the next.
+                Nothing in the database can be turned back into a nickname.
+            </li>
+            <li>No IP addresses, no locations, no file transfers, no chat.</li>
+        </ul>
+        <p>
+            The node shares no files of its own. It contributes to the network by routing search
+            requests, not by serving content.
+        </p>
+
+        <h2>How to read the numbers</h2>
+        <ul>
+            <li>
+                <strong>Searches</strong> is how many matching requests we saw.
+                <strong>Listeners</strong> is how many distinct people (as daily pseudonyms) made
+                them — one person repeating a query cannot push an artist up the chart alone.
+            </li>
+            <li>
+                Movement compares a period against the one before it. A month is compared against
+                the calendar month before it, which may be a few days shorter or longer.
+            </li>
+            <li>
+                Only queries the parser resolved with sufficient confidence enter a chart.
+                Everything else is still stored, so parser quality can be measured honestly.
+            </li>
+        </ul>
+
+        <h2>Limits of the sample</h2>
+        <p>
+            One node sees one branch of the distributed tree, not the whole network. These charts
+            are a sample, and the sample is shaped by where our node sits in the tree and by how
+            long it stays connected. Treat the ranking as indicative, not as a census.
+        </p>
+        <p>
+            Data is available as JSON and CSV through the
+            <a href="/api/v1/docs">public API</a>.
+        </p>
+    </main>
+</div>
+<script src="/dashboard.js"></script>
+</body>
+</html>
