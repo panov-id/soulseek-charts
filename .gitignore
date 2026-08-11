@@ -1,0 +1,15 @@
+# Credentials: a Soulseek account password lives here.
+.env
+
+# Collected data and the pseudonym key. The key is a credential: with it, the
+# archive can be reduced back to real nicknames.
+data/
+results/
+*.jsonl
+*.jsonl.gz
+*.db
+
+# Built binaries
+soulseek-charts
+soulseek-resolve
+collector
