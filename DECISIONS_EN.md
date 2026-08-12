@@ -60,7 +60,33 @@ async def on_message_received(event: MessageReceivedEvent) -> None:
 
 ---
 
+## 6. The Go prototype is removed; the project is rewritten in Python (2026-08-12)
+
+**Decision:** the `probe/`, `charts/`, `resolver/` and `analysis/` directories are removed from the repository. The `docs/` directory (protocol notes and handover notes) is kept.
+
+**Why:** the project owner's decision — the Go version is treated as a prototype and further work continues in Python. The removed code remains in git history (commits `80e7962`, `20b076e`, `b7e5a50`) and can be restored at any time. The notes in `docs/` are not code: they are results of experiments on the live network, and reacquiring them would cost days.
+
+**Side finding:** in the previous `.gitignore`, the line `collector` (the name of the built binary) also matched the directory of the same name, so **the daemon's source was never committed** — it exists only on the author's machine. The new `.gitignore` does not carry that rule.
+
+---
+
+## 7. Prototype measurements outrank assumptions (2026-08-12)
+
+**Decision:** the following facts were established by experiment on the live network and are not revisited without new data.
+
+- **One parent, not several.** Parents relay the same queries; three of them inflated every count roughly fivefold.
+- **One node is enough.** Streams from parents at branch levels 4 and 6 are identical (Jaccard 0.995–0.999). Depth affects latency, not coverage.
+- **Volume:** 46.7 queries per second, about 4 million a day, ~30 000 distinct searchers a day, ~96% of queries unique.
+- **Demand is counted in people, not queries** — otherwise one person working through a discography defines the chart.
+- **Nicknames are never resolved to addresses**, although the server allows it. Doing so would make the pseudonymization pointless.
+
+**Consequences for the current code:** the measured 46.7 queries per second replaces guesswork in the container limits; at ~96% unique queries the TTL and size of the raw ClickHouse layer are worth re-checking.
+
+---
+
 ## Open questions
 
-- **The node's Soulseek nickname.** A new account is needed; registration happens on the first login with a new nickname. The nickname is visible to other participants, so the user chooses it.
-- **Host machine specification.** Container limits (`8G` for ClickHouse, `512M` for the collector) are still placeholders.
+- **Pseudonym: stable or rotating — a conflict of decisions.** The prototype deliberately chose a stable HMAC pseudonym: stability buys counting demand in people over time and behavioural recommendations, at the cost of a long-lived profile of a person's searches without their name. The current Python code (decision 5) rotates the salt daily and destroys both capabilities. **One of the two decisions must be withdrawn before collection starts.**
+- **The client version problem blocks collection.** The server only offers distributed parents to client versions it recognises. Under an unknown version the login succeeds and the parent list never arrives, so the collector records nothing. Unresolved.
+- **The node's Soulseek nickname.** The prototype used the account `soulseekcharts`. Whether to reuse it or create a new one is the user's decision.
+- **Host machine specification.** Container limits (`8G` for ClickHouse, `512M` for the collector) are still placeholders, but there is now a real traffic volume to size them against.
