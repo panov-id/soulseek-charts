@@ -36,21 +36,37 @@ class Migration:
     statements: tuple[str, ...]
 
 
+def _contains_sql(lines: list[str]) -> bool:
+    return any(line.strip() and not line.strip().startswith("--") for line in lines)
+
+
 def split_statements(sql_text: str) -> tuple[str, ...]:
     """Split a migration file into individual statements.
 
     ClickHouse accepts one statement per request, so files are separated on
-    semicolons. Comment-only fragments are dropped.
+    semicolons — but only on semicolons that are actually SQL. Prose in a
+    comment may contain one, and splitting there would cut a statement in half.
     """
     statements: list[str] = []
-    for raw_statement in sql_text.split(";"):
-        meaningful_lines = [
-            line
-            for line in raw_statement.strip().splitlines()
-            if line.strip() and not line.strip().startswith("--")
-        ]
-        if meaningful_lines:
-            statements.append(raw_statement.strip())
+    current_lines: list[str] = []
+
+    for line in sql_text.splitlines():
+        if line.strip().startswith("--"):
+            current_lines.append(line)
+            continue
+
+        while ";" in line:
+            before_semicolon, _, line = line.partition(";")
+            current_lines.append(before_semicolon)
+            if _contains_sql(current_lines):
+                statements.append("\n".join(current_lines).strip())
+            current_lines = []
+
+        current_lines.append(line)
+
+    if _contains_sql(current_lines):
+        statements.append("\n".join(current_lines).strip())
+
     return tuple(statements)
 
 

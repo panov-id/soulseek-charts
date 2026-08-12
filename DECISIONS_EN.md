@@ -50,13 +50,21 @@ async def on_message_received(event: MessageReceivedEvent) -> None:
 
 ---
 
-## 5. Usernames — hashed with a daily rotating salt (2026-08-11)
+## 5. Usernames — a stable pseudonym, bounded by retention (2026-08-12)
 
-**Decision:** a `username` never reaches storage in readable form. We store `HMAC(daily_salt, username)`, where `daily_salt = HMAC(secret, date)`. Implemented in `source/soulseek_charts/privacy.py`.
+**Withdraws** the earlier decision of 2026-08-11 to rotate the salt daily.
 
-**Why:** within a single day the pseudonym is stable, which makes it possible to filter bots and spam queries (step 25) and to count unique searchers. Across days, one person's pseudonyms are unrelated, so our database cannot be used to track a specific user over time.
+**Decision:** a `username` never reaches storage in readable form. We store `HMAC-SHA256(secret, username)` truncated to eight bytes. The pseudonym is **stable**. What bounds the profile is retention, not rotation:
 
-**How to apply:** the secret lives in `PRIVACY_HASH_SECRET` (at least 32 characters) and never enters the repository. Leaking it would allow mapping pseudonyms back to nicknames, so it is handled as an ordinary production secret.
+| Layer | What it holds | Retention |
+|---|---|---|
+| `search_query_events` | pseudonym + raw query text | 30 days |
+| `parsed_search_queries` | pseudonym + artist and track | 90 days |
+| hourly aggregates | no individuals, counters only | 3 years |
+
+**Why:** stability is what makes counting demand in people over time and behavioural recommendations (the scene method) possible at all. Rotation destroyed both for protection that retention buys more cheaply: the profile expires even though the pseudonym does not. Charts live for years because they contain no people.
+
+**How to apply:** the secret lives in `PRIVACY_HASH_SECRET` (at least 32 characters) and never enters the repository. It is a credential: with it the archive can be reduced back to real nicknames, so if the data is moved or published the key must not travel with it. Truncating to eight bytes matches the prototype's format, so its archive can still be reconciled with this storage if wanted.
 
 ---
 
@@ -84,9 +92,26 @@ async def on_message_received(event: MessageReceivedEvent) -> None:
 
 ---
 
+## 8. Client version — an explicit operator choice only (2026-08-12)
+
+**Decision:** by default the node claims no other project's version number and therefore **records nothing**. The number is set through `SOULSEEK_CLIENT_VERSION_MAJOR` and `SOULSEEK_CLIENT_VERSION_MINOR`; without them the collector logs a warning at startup and explains the consequence.
+
+**Why:** the server only offers distributed parents to versions it recognises. Claiming another client's number is technically trivial, but it makes that project answerable for our node's behaviour. That step belongs to the person deploying the node, taken knowingly and by hand — not to a default in the code.
+
+**What remains unresolved:** there is no legitimate way to register a version of our own. Until there is, the project is useful only to someone willing to make that choice themselves.
+
+---
+
+## 9. Limits sized for the actual machine (2026-08-12)
+
+**Decision:** ClickHouse gets 2 GB and 2 cores, the collector 384 MB, the API 256 MB. The ClickHouse server ceiling is 1.5 GB, with 500 MB per query.
+
+**Why:** the stack lives on the author's workstation: 8 cores and 14 GB, of which about 11 GB is already taken by twenty-eight unrelated containers, leaving ~3.5 GB. The earlier `8G` for ClickHouse would have meant an OOM either for the neighbours or for the server itself. When the stack moves to a dedicated host these numbers rise together with the container limit — they are written in a comment next to it for that reason.
+
+---
+
 ## Open questions
 
-- **Pseudonym: stable or rotating — a conflict of decisions.** The prototype deliberately chose a stable HMAC pseudonym: stability buys counting demand in people over time and behavioural recommendations, at the cost of a long-lived profile of a person's searches without their name. The current Python code (decision 5) rotates the salt daily and destroys both capabilities. **One of the two decisions must be withdrawn before collection starts.**
-- **The client version problem blocks collection.** The server only offers distributed parents to client versions it recognises. Under an unknown version the login succeeds and the parent list never arrives, so the collector records nothing. Unresolved.
-- **The node's Soulseek nickname.** The prototype used the account `soulseekcharts`. Whether to reuse it or create a new one is the user's decision.
-- **Host machine specification.** Container limits (`8G` for ClickHouse, `512M` for the collector) are still placeholders, but there is now a real traffic volume to size them against.
+- **A legitimate way to register a client version.** See decision 8: there is none, and it is the only thing standing between the project and real data.
+- **Cutover from the Go collector.** The prototype runs on this same machine under the `soulseekcharts` account and keeps adding to its archive. It should be stopped at cutover and not before: until a working Python collector exists, stopping it only pauses collection. The account is reused afterwards.
+- **The prototype's pseudonymization secret.** It lives on the author's machine. Reusing the same secret would make the new storage's pseudonyms match the old archive, allowing the two collection periods to be joined. The user decides: it is a credential, and I do not touch it.

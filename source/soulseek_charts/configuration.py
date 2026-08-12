@@ -33,6 +33,13 @@ def read_integer(name: str, default: int) -> int:
         ) from conversion_error
 
 
+def read_optional_integer(name: str) -> int | None:
+    raw_value = os.environ.get(name)
+    if raw_value is None or raw_value == "":
+        return None
+    return read_integer(name, 0)
+
+
 @dataclass(frozen=True)
 class SoulseekConfiguration:
     username: str
@@ -40,6 +47,17 @@ class SoulseekConfiguration:
     server_host: str
     server_port: int
     listening_port: int
+    # The server only offers distributed parents to client versions it
+    # recognises. Under an unknown version the login succeeds and no parent
+    # ever arrives, so the node records nothing. Claiming another project's
+    # version makes their client answerable for this one's behaviour, so it is
+    # never the default: the operator sets it deliberately or collects nothing.
+    client_version_major: int | None
+    client_version_minor: int | None
+
+    @property
+    def claims_a_version(self) -> bool:
+        return self.client_version_major is not None
 
     @classmethod
     def from_environment(cls) -> SoulseekConfiguration:
@@ -49,6 +67,8 @@ class SoulseekConfiguration:
             server_host=read_text("SOULSEEK_SERVER_HOST", "server.slsknet.org"),
             server_port=read_integer("SOULSEEK_SERVER_PORT", 2242),
             listening_port=read_integer("SOULSEEK_LISTENING_PORT", 2234),
+            client_version_major=read_optional_integer("SOULSEEK_CLIENT_VERSION_MAJOR"),
+            client_version_minor=read_optional_integer("SOULSEEK_CLIENT_VERSION_MINOR"),
         )
 
 

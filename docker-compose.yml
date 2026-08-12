@@ -39,10 +39,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "4.0"
-          memory: 8G
+          cpus: "2.0"
+          memory: 2G
         reservations:
-          memory: 4G
+          memory: 1G
     logging:
       driver: json-file
       options:
@@ -68,9 +68,9 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 384M
         reservations:
-          memory: 256M
+          memory: 192M
     logging:
       # A long-running daemon fills the disk with logs unless rotation is bounded.
       driver: json-file
@@ -97,8 +97,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 512M
+          cpus: "0.5"
+          memory: 256M
         reservations:
           memory: 128M
     logging:

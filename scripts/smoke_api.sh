@@ -52,40 +52,40 @@ SELECT
     -- ClickHouse refuses to narrow a Float64 literal to Float32 implicitly.
     toFloat32(parse_confidence), parser_version
 FROM values(
-    'received_at DateTime64(3), searcher_pseudonym FixedString(32), ticket UInt32,
+    'received_at DateTime64(3), searcher_pseudonym FixedString(16), ticket UInt32,
      query_text String, artist_name String, album_name String, track_name String,
      parse_confidence Float64, parser_version UInt16',
 
     -- current week
-    (now(), '00000000000000000000000000000001', 101, 'aphex twin windowlicker',
+    (now(), '0000000000000001', 101, 'aphex twin windowlicker',
      'aphex twin', '', 'windowlicker', 0.9, 1),
-    (now(), '00000000000000000000000000000002', 102, 'aphex twin come to daddy',
+    (now(), '0000000000000002', 102, 'aphex twin come to daddy',
      'aphex twin', '', 'come to daddy', 0.9, 1),
-    (now(), '00000000000000000000000000000002', 103, 'aphex twin xtal',
+    (now(), '0000000000000002', 103, 'aphex twin xtal',
      'aphex twin', '', 'xtal', 0.9, 1),
-    (now(), '00000000000000000000000000000003', 104, 'autechre gantz graf',
+    (now(), '0000000000000003', 104, 'autechre gantz graf',
      'autechre', '', 'gantz graf', 0.9, 1),
-    (now(), '00000000000000000000000000000004', 105, 'autechre amber',
+    (now(), '0000000000000004', 105, 'autechre amber',
      'autechre', '', 'amber', 0.9, 1),
-    (now(), '00000000000000000000000000000005', 106, 'boards of canada roygbiv',
+    (now(), '0000000000000005', 106, 'boards of canada roygbiv',
      'boards of canada', '', 'roygbiv', 0.9, 1),
 
     -- previous week
-    (toStartOfWeek(now(), 1) - INTERVAL 6 HOUR, '00000000000000000000000000000006', 201,
+    (toStartOfWeek(now(), 1) - INTERVAL 6 HOUR, '0000000000000006', 201,
      'boards of canada olson', 'boards of canada', '', 'olson', 0.9, 1),
-    (toStartOfWeek(now(), 1) - INTERVAL 7 HOUR, '00000000000000000000000000000007', 202,
+    (toStartOfWeek(now(), 1) - INTERVAL 7 HOUR, '0000000000000007', 202,
      'boards of canada dayvan cowboy', 'boards of canada', '', 'dayvan cowboy', 0.9, 1),
-    (toStartOfWeek(now(), 1) - INTERVAL 8 HOUR, '00000000000000000000000000000008', 203,
+    (toStartOfWeek(now(), 1) - INTERVAL 8 HOUR, '0000000000000008', 203,
      'boards of canada telephasic workshop', 'boards of canada', '', 'telephasic workshop', 0.9, 1),
-    (toStartOfWeek(now(), 1) - INTERVAL 9 HOUR, '00000000000000000000000000000009', 204,
+    (toStartOfWeek(now(), 1) - INTERVAL 9 HOUR, '0000000000000009', 204,
      'aphex twin avril 14th', 'aphex twin', '', 'avril 14th', 0.9, 1),
 
     -- two months ago: makes autechre a re-entry rather than a new entry
-    (now() - INTERVAL 60 DAY, '00000000000000000000000000000010', 301,
+    (now() - INTERVAL 60 DAY, '0000000000000010', 301,
      'autechre bike', 'autechre', '', 'bike', 0.9, 1),
 
     -- below the chart confidence threshold: must not appear anywhere
-    (now(), '00000000000000000000000000000011', 302, 'some unparseable blob',
+    (now(), '0000000000000011', 302, 'some unparseable blob',
      'some unparseable blob', '', '', 0.3, 1)
 )
 "

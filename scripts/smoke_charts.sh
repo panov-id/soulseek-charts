@@ -33,13 +33,13 @@ INSERT INTO ${throwaway_database}.parsed_search_queries
     (received_at, searcher_pseudonym, ticket, query_text,
      artist_name, album_name, track_name, parse_confidence, parser_version)
 VALUES
-    ('2026-08-11 10:00:00.000', '00000000000000000000000000000001', 1,
+    ('2026-08-11 10:00:00.000', '0000000000000001', 1,
      'aphex twin windowlicker', 'aphex twin', '', 'windowlicker', 0.9, 1),
-    ('2026-08-11 10:05:00.000', '00000000000000000000000000000001', 2,
+    ('2026-08-11 10:05:00.000', '0000000000000001', 2,
      'aphex twin come to daddy', 'aphex twin', '', 'come to daddy', 0.9, 1),
-    ('2026-08-11 10:07:00.000', '00000000000000000000000000000002', 3,
+    ('2026-08-11 10:07:00.000', '0000000000000002', 3,
      'aphex twin windowlicker flac', 'aphex twin', '', 'windowlicker', 0.8, 1),
-    ('2026-08-11 10:30:00.000', '00000000000000000000000000000003', 4,
+    ('2026-08-11 10:30:00.000', '0000000000000003', 4,
      'boards of canada dayvan cowboy', 'boards of canada', '', 'dayvan cowboy', 0.9, 1)
 "
 

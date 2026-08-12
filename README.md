@@ -71,7 +71,13 @@ nothing.
 
 That is deliberate. The alternative is to claim another project's version
 number, which makes their client answerable for this one's behaviour. If you
-choose to do that, it is an explicit, informed decision.
+choose to do that, it is an explicit, informed decision:
+
+    SOULSEEK_CLIENT_VERSION_MAJOR=<number>
+    SOULSEEK_CLIENT_VERSION_MINOR=<number>
+
+Left unset, the collector says so at startup and keeps running with an empty
+stream rather than quietly pretending to be someone else.
 
 Finding a legitimate way to register a version is an open problem, and
 contributions on it are welcome.
@@ -86,14 +92,14 @@ dictionary attack against the archive would be trivial. The secret key is what
 makes this one-way in practice, and it is a credential — if the data is ever
 moved or published, the key must not travel with it.
 
-Whether that pseudonym is **stable** or **rotates daily** is an open decision,
-and the two are not interchangeable. A stable pseudonym buys counting demand in
-people over time and behavioural recommendations, at the cost of holding a
-long-lived profile of a person's searches without their name. A daily rotating
-salt gives up both capabilities and makes cross-day linkage impossible. The Go
-prototype chose stable; the current Python code rotates daily
-(`source/soulseek_charts/privacy.py`). This must be settled before collection
-starts — see `DECISIONS_RU.md` / `DECISIONS_EN.md`.
+The pseudonym is **stable**, which is a deliberate trade: it buys counting
+demand in people over time and behavioural recommendations, at the cost of
+holding a long-lived profile of a person's searches without their name.
+
+What bounds that profile is retention rather than rotation. Raw query text next
+to a pseudonym expires after **30 days**, the normalized layer after **90**, and
+only the aggregates — which contain no individuals — live for years. The
+profile expires even though the pseudonym does not.
 
 **What this project will not do.** The server hands out the IP address and port
 for any nickname on request. The chain nickname → address → location → what

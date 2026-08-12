@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS parsed_search_queries
 (
     received_at DateTime64(3),
     received_date Date MATERIALIZED toDate(received_at),
-    searcher_pseudonym FixedString(32),
+    searcher_pseudonym FixedString(16),
     ticket UInt32,
     query_text String,
     artist_name String,
@@ -23,5 +23,8 @@ CREATE TABLE IF NOT EXISTS parsed_search_queries
 ENGINE = ReplacingMergeTree(parser_version)
 PARTITION BY received_date
 ORDER BY (received_date, searcher_pseudonym, ticket)
-TTL toDateTime(received_at) + INTERVAL 2 YEAR
+-- Still one person's searches next to a stable pseudonym, only normalized, so
+-- it is bounded too — long enough for a season of scene analysis, not forever.
+-- Only the aggregates, which hold no individual, live for years.
+TTL toDateTime(received_at) + INTERVAL 90 DAY
 SETTINGS index_granularity = 8192

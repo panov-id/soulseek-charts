@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS artist_search_counts_hourly
     hour_start DateTime,
     artist_name String,
     search_count AggregateFunction(count),
-    unique_searchers AggregateFunction(uniq, FixedString(32))
+    unique_searchers AggregateFunction(uniq, FixedString(16))
 )
 ENGINE = AggregatingMergeTree
 PARTITION BY toYYYYMM(hour_start)
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS track_search_counts_hourly
     artist_name String,
     track_name String,
     search_count AggregateFunction(count),
-    unique_searchers AggregateFunction(uniq, FixedString(32))
+    unique_searchers AggregateFunction(uniq, FixedString(16))
 )
 ENGINE = AggregatingMergeTree
 PARTITION BY toYYYYMM(hour_start)

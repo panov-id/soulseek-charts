@@ -30,9 +30,7 @@ INSERT INTO ${demo_database}.parsed_search_queries
      artist_name, album_name, track_name, parse_confidence, parser_version)
 SELECT
     now() - toIntervalDay(days.day_offset) - toIntervalHour(slots.slot) AS received_at,
-    toFixedString(
-        hex(sipHash128(concat(toString(slots.slot % 7), '-', toString(days.day_offset)))), 32
-    ) AS searcher_pseudonym,
+    toFixedString(hex(sipHash64(toString(slots.slot % 7))), 16) AS searcher_pseudonym,
     toUInt32(cityHash64(days.day_offset, catalogue.entry.1, slots.slot) % 4000000000) AS ticket,
     concat(catalogue.entry.1, ' ', catalogue.entry.2) AS query_text,
     catalogue.entry.1 AS artist_name,

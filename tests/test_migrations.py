@@ -20,6 +20,19 @@ def test_split_statements_drops_comment_only_fragments():
     assert "CREATE TABLE first" in statements[0]
 
 
+def test_split_statements_ignores_a_semicolon_inside_a_comment():
+    """A semicolon in prose once cut a CREATE TABLE in half."""
+    sql_text = (
+        "-- stability is the point; the TTL is the mitigation\n"
+        "CREATE TABLE first (a UInt8) ENGINE = Memory;\n"
+    )
+
+    statements = split_statements(sql_text)
+
+    assert len(statements) == 1
+    assert "CREATE TABLE first" in statements[0]
+
+
 def test_discovered_migrations_are_ordered_and_non_empty():
     migrations = discover_migrations()
 

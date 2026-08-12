@@ -14,6 +14,7 @@ import signal
 from soulseek_charts.configuration import (
     ClickHouseConfiguration,
     CollectorConfiguration,
+    SoulseekConfiguration,
     read_logging_level,
 )
 
@@ -32,6 +33,20 @@ async def run_collector(stop_signal: asyncio.Event) -> None:
         collector_configuration.batch_size,
         collector_configuration.flush_interval_seconds,
     )
+    soulseek_configuration = SoulseekConfiguration.from_environment()
+    if soulseek_configuration.claims_a_version:
+        logger.info(
+            "Claiming client version %s.%s — an explicit choice by the operator",
+            soulseek_configuration.client_version_major,
+            soulseek_configuration.client_version_minor,
+        )
+    else:
+        logger.warning(
+            "No client version set: the server will not offer distributed parents, "
+            "so this node will record nothing. Set SOULSEEK_CLIENT_VERSION_MAJOR "
+            "and SOULSEEK_CLIENT_VERSION_MINOR to override, deliberately."
+        )
+
     logger.warning("Soulseek network connection is not implemented yet (roadmap stage 2)")
 
     await stop_signal.wait()

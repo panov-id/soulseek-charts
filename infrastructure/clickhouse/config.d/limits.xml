@@ -1,14 +1,19 @@
 <clickhouse>
-    <!-- Kept below the container memory limit in docker-compose.yml (8G).
+    <!-- Kept below the container memory limit in docker-compose.yml (2G).
          Without this the server assumes the whole host RAM is available and
-         gets OOM-killed instead of failing a single query. -->
-    <max_server_memory_usage>6000000000</max_server_memory_usage>
-    <max_concurrent_queries>50</max_concurrent_queries>
+         gets OOM-killed instead of failing a single query.
+
+         The host is a workstation already running other stacks: 14 GiB total
+         with roughly 3.5 GiB free. These numbers are sized for that, not for a
+         dedicated server — raise them together with the container limit when
+         the stack moves. -->
+    <max_server_memory_usage>1500000000</max_server_memory_usage>
+    <max_concurrent_queries>20</max_concurrent_queries>
 
     <!-- Server logs are inside the container filesystem and need their own ceiling. -->
     <logger>
         <level>information</level>
         <size>100M</size>
-        <count>5</count>
+        <count>3</count>
     </logger>
 </clickhouse>
