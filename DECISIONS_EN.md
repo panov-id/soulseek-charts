@@ -110,6 +110,24 @@ async def on_message_received(event: MessageReceivedEvent) -> None:
 
 ---
 
+## 10. Pseudonymization key epochs (2026-08-12)
+
+**Decision:** `parsed_search_queries` and the hourly aggregates carry a `key_epoch` column: `1` is the prototype's archive, `2` is this node's own collection. Searches are summed across the boundary freely; **people are not**. When a period covers both epochs the listener count is withheld entirely (`null`, an em dash on the dashboard) rather than approximated.
+
+**Why:** a new key was chosen at cutover, so the same person carries unrelated pseudonyms on either side of 2026-08-12 11:37. A `uniq` across the boundary would count them twice — silently and plausibly, which is worse than a missing number. At the time of the decision this affects 626 artists out of 8815.
+
+**How to apply:** a new epoch is created by any key change. Zero and "not comparable" are different things: the interface shows an em dash, CSV an empty cell, the API `null`.
+
+---
+
+## 11. Records without a searcher are not imported (2026-08-12)
+
+**Decision:** the 89 240 archive records from 9 August that predate the prototype's pseudonymization are not imported. The importer counts them separately and warns.
+
+**Why:** they carry no `user` field. A shared placeholder would collapse thousands of different people into one and distort the listener metric in the earliest hours; per-row semantics inside one table is a trap for every future query. The loss is 3.5% of the archive and confined to the first hours of collection.
+
+---
+
 ## Open questions
 
 - **A legitimate way to register a client version.** See decision 8: there is none, and it is the only thing standing between the project and real data.

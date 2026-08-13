@@ -1,0 +1,23 @@
+<clickhouse>
+    <!-- The jump host has 1.9 GiB total, shared with four WireGuard containers
+         and the system. This ceiling is deliberately well below the 1G
+         container limit so a heavy aggregation fails one query instead of
+         OOM-killing the server or its neighbours.
+         Raise this together with the container limit when the stack moves to a
+         larger host. 700 MiB proved below ClickHouse's working minimum for
+         insert + materialized-view aggregation here, so it sits at 900 MiB:
+         during the bulk reprocess the collector and API are not running, and
+         in steady state inserts are tiny while chart queries are capped
+         per-query in users.d. -->
+    <max_server_memory_usage>900000000</max_server_memory_usage>
+    <max_concurrent_queries>4</max_concurrent_queries>
+
+    <mark_cache_size>134217728</mark_cache_size>
+    <uncompressed_cache_size>0</uncompressed_cache_size>
+
+    <logger>
+        <level>warning</level>
+        <size>50M</size>
+        <count>3</count>
+    </logger>
+</clickhouse>

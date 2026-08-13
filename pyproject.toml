@@ -48,7 +48,8 @@ strict = true
 mypy_path = "source"
 
 [[tool.mypy.overrides]]
-module = ["clickhouse_connect.*"]
+# Neither library ships type information.
+module = ["clickhouse_connect.*", "aioslsk.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

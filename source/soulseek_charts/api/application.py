@@ -55,7 +55,11 @@ class ArtistChartEntryModel(BaseModel):
     position: int
     artist_name: str
     searches: int
-    listeners: int
+    listeners: int | None = Field(
+        default=None,
+        description="Distinct people; null when the window spans two "
+        "pseudonymization keys, where the same person would be counted twice",
+    )
     movement: MovementModel
 
 
@@ -64,7 +68,7 @@ class TrackChartEntryModel(BaseModel):
     artist_name: str
     track_name: str
     searches: int
-    listeners: int
+    listeners: int | None = None
     movement: MovementModel
 
 
@@ -80,13 +84,13 @@ class ChartModel(BaseModel):
 class TimeSeriesPointModel(BaseModel):
     day: datetime
     searches: int
-    listeners: int
+    listeners: int | None = None
 
 
 class TrackSummaryModel(BaseModel):
     track_name: str
     searches: int
-    listeners: int
+    listeners: int | None = None
 
 
 class ArtistDetailModel(BaseModel):
@@ -208,7 +212,7 @@ def export_artist_chart(
                 entry.position,
                 entry.artist_name,
                 entry.searches,
-                entry.listeners,
+                entry.listeners if entry.listeners is not None else "",
                 entry.movement.kind,
                 entry.movement.positions if entry.movement.positions is not None else "",
             ]

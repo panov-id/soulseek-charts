@@ -36,7 +36,14 @@ def test_split_statements_ignores_a_semicolon_inside_a_comment():
 def test_discovered_migrations_are_ordered_and_non_empty():
     migrations = discover_migrations()
 
-    assert [migration.identifier for migration in migrations] == ["0001", "0002", "0003"]
+    assert [migration.identifier for migration in migrations] == [
+        "0001",
+        "0002",
+        "0003",
+        "0004",
+        "0005",
+        "0006",
+    ]
     assert all(migration.statements for migration in migrations)
 
 

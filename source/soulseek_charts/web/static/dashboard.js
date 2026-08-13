@@ -51,6 +51,12 @@ function element(tagName, attributes = {}, children = []) {
     return node;
 }
 
+// A withheld listener count is not zero and must not read as one: the window
+// spans two pseudonymization keys, so the number would count people twice.
+function formatListeners(listeners) {
+    return listeners === null || listeners === undefined ? "—" : listeners.toLocaleString();
+}
+
 function movementCell(movement) {
     const labels = {
         up: `▲ ${movement.positions}`,
@@ -96,7 +102,7 @@ function chartTable(entries, options) {
             nameCell,
             element("td", { class: "bar-cell" }, [bar]),
             element("td", { class: "numeric", text: entry.searches.toLocaleString() }),
-            element("td", { class: "numeric", text: entry.listeners.toLocaleString() }),
+            element("td", { class: "numeric", text: formatListeners(entry.listeners) }),
             movementCell(entry.movement),
         ]);
     });
@@ -160,7 +166,9 @@ function lineChart(points) {
     // Both series count the same kind of thing, so they share one axis.
     // Two scales on one chart would invent a relationship that is not there.
     const observedMaximum = Math.max(
-        ...points.flatMap((point) => [point.searches, point.listeners]),
+        ...points
+            .flatMap((point) => [point.searches, point.listeners])
+            .filter((value) => value !== null && value !== undefined),
         1
     );
     const { step: tickStep, tickCount } = niceScale(observedMaximum);
@@ -233,11 +241,20 @@ function lineChart(points) {
     svg.append(crosshair);
 
     for (const definition of series) {
+        // A withheld value breaks the line rather than being drawn as zero.
+        let penIsDown = false;
         const path = points
-            .map(
-                (point, index) =>
-                    `${index === 0 ? "M" : "L"} ${positionX(index)} ${positionY(point[definition.key])}`
-            )
+            .map((point, index) => {
+                const value = point[definition.key];
+                if (value === null || value === undefined) {
+                    penIsDown = false;
+                    return "";
+                }
+                const command = penIsDown ? "L" : "M";
+                penIsDown = true;
+                return `${command} ${positionX(index)} ${positionY(value)}`;
+            })
+            .filter(Boolean)
             .join(" ");
         svg.append(
             svgElement("path", {
@@ -253,6 +270,9 @@ function lineChart(points) {
         // A ring in the surface colour keeps overlapping markers readable.
         if (points.length <= DENSE_SERIES_THRESHOLD) {
             points.forEach((point, index) => {
+                if (point[definition.key] === null || point[definition.key] === undefined) {
+                    return;
+                }
                 svg.append(
                     svgElement("circle", {
                         cx: positionX(index),
@@ -302,13 +322,16 @@ function lineChart(points) {
         crosshair.setAttribute("opacity", 1);
 
         for (const { definition, marker } of hoverMarkers) {
+            const value = point[definition.key];
+            const isMissing = value === null || value === undefined;
             marker.setAttribute("cx", positionX(nearestIndex));
-            marker.setAttribute("cy", positionY(point[definition.key]));
-            marker.setAttribute("opacity", 1);
+            marker.setAttribute("cy", isMissing ? 0 : positionY(value));
+            marker.setAttribute("opacity", isMissing ? 0 : 1);
         }
 
-        tooltip.textContent =
-            `${point.day.slice(0, 10)} · ${point.searches} searches · ${point.listeners} listeners`;
+        const listenerText =
+            point.listeners === null ? "listeners not comparable" : `${point.listeners} listeners`;
+        tooltip.textContent = `${point.day.slice(0, 10)} · ${point.searches} searches · ${listenerText}`;
         tooltip.classList.add("visible");
         tooltip.style.left = `${Math.min((positionX(nearestIndex) / scale) + 12, bounds.width - 220)}px`;
         tooltip.style.top = "8px";
@@ -334,7 +357,7 @@ function lineChart(points) {
         element("tr", {}, [
             element("td", { text: point.day.slice(0, 10) }),
             element("td", { class: "numeric", text: String(point.searches) }),
-            element("td", { class: "numeric", text: String(point.listeners) }),
+            element("td", { class: "numeric", text: formatListeners(point.listeners) }),
         ])
     );
     const tableView = element("details", {}, [
@@ -443,7 +466,7 @@ async function renderArtist(view, artistName) {
         element("tr", {}, [
             element("td", { class: "name", text: track.track_name }),
             element("td", { class: "numeric", text: track.searches.toLocaleString() }),
-            element("td", { class: "numeric", text: track.listeners.toLocaleString() }),
+            element("td", { class: "numeric", text: formatListeners(track.listeners) }),
         ])
     );
 

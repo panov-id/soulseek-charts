@@ -1,0 +1,14 @@
+<clickhouse>
+    <profiles>
+        <default>
+            <!-- One chart aggregation may use at most this much, keeping it
+                 under the server budget in config.d/limits.xml. On this small
+                 host a wide all-time chart can hit this and fail; that is the
+                 intended trade — collection never suffers, heavy analytics
+                 does. -->
+            <max_memory_usage>300000000</max_memory_usage>
+            <max_execution_time>30</max_execution_time>
+            <max_bytes_before_external_group_by>200000000</max_bytes_before_external_group_by>
+        </default>
+    </profiles>
+</clickhouse>

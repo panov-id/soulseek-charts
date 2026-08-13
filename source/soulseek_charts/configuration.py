@@ -65,7 +65,7 @@ class SoulseekConfiguration:
             username=read_text("SOULSEEK_USERNAME"),
             password=read_text("SOULSEEK_PASSWORD"),
             server_host=read_text("SOULSEEK_SERVER_HOST", "server.slsknet.org"),
-            server_port=read_integer("SOULSEEK_SERVER_PORT", 2242),
+            server_port=read_integer("SOULSEEK_SERVER_PORT", 2416),
             listening_port=read_integer("SOULSEEK_LISTENING_PORT", 2234),
             client_version_major=read_optional_integer("SOULSEEK_CLIENT_VERSION_MAJOR"),
             client_version_minor=read_optional_integer("SOULSEEK_CLIENT_VERSION_MINOR"),
@@ -106,16 +106,23 @@ class CollectorConfiguration:
 
 @dataclass(frozen=True)
 class PrivacyConfiguration:
-    """Secret behind the daily rotating salt applied to usernames."""
+    """The hex-encoded key behind the stable pseudonym replacing usernames."""
 
     hash_secret: str
 
     @classmethod
     def from_environment(cls) -> PrivacyConfiguration:
         hash_secret = read_text("PRIVACY_HASH_SECRET")
-        if len(hash_secret) < 32:
+        try:
+            key = bytes.fromhex(hash_secret)
+        except ValueError as conversion_error:
             raise ConfigurationError(
-                "PRIVACY_HASH_SECRET must be at least 32 characters; "
+                "PRIVACY_HASH_SECRET must be hex-encoded; generate one with: openssl rand -hex 32"
+            ) from conversion_error
+
+        if len(key) != 32:
+            raise ConfigurationError(
+                "PRIVACY_HASH_SECRET must decode to 32 bytes (64 hex characters); "
                 "generate one with: openssl rand -hex 32"
             )
         return cls(hash_secret=hash_secret)

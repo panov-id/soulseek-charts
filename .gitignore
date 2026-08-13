@@ -1,5 +1,6 @@
 # Credentials: a Soulseek account password lives here.
 .env
+.env.backup*
 *.local
 
 # Collected data and the pseudonym key. The key is a credential: with it, the
