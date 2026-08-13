@@ -16,7 +16,8 @@ from soulseek_charts.parsing.normalization import normalize_query
 # Bumped whenever parsing behaviour changes. It is the ReplacingMergeTree
 # version column of parsed_search_queries, so reprocessing replaces rows
 # instead of duplicating them.
-PARSER_VERSION = 1
+# 2: artist/track resolution against the MusicBrainz catalogue.
+PARSER_VERSION = 2
 
 # Rows below this confidence are kept but excluded from the charts. The same
 # value is written literally into migration 0003.

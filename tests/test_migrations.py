@@ -43,6 +43,7 @@ def test_discovered_migrations_are_ordered_and_non_empty():
         "0004",
         "0005",
         "0006",
+        "0007",
     ]
     assert all(migration.statements for migration in migrations)
 

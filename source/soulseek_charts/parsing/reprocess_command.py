@@ -21,8 +21,23 @@ import sys
 from typing import Any
 
 from soulseek_charts.configuration import ClickHouseConfiguration, read_logging_level
-from soulseek_charts.parsing.query_parser import PARSER_VERSION, parse_search_query
+from soulseek_charts.identification.resolver import (
+    ArtistCatalogue,
+    candidate_artist_keys,
+    resolve,
+)
+from soulseek_charts.parsing.query_parser import PARSER_VERSION
 from soulseek_charts.storage.client import create_client
+
+CATALOGUE_LOOKUP = """
+SELECT normalized_name FROM musicbrainz_artists WHERE normalized_name IN {keys:Array(String)}
+"""
+
+DERIVED_TABLES = (
+    "parsed_search_queries",
+    "artist_search_counts_hourly",
+    "track_search_counts_hourly",
+)
 
 logger = logging.getLogger("soulseek_charts.parsing.reprocess")
 
@@ -104,62 +119,100 @@ def resolve_incremental_since(client: Any) -> str:
     return str(start.strftime("%Y-%m-%d %H:%M:%S.%f"))
 
 
-def _parsed_row(
-    received_at: Any, pseudonym: str, ticket: int, query_text: str, source: str
-) -> list[Any]:
-    parsed = parse_search_query(query_text)
-    return [
-        received_at,
-        pseudonym,
-        ticket,
-        query_text,
-        parsed.artist_name,
-        parsed.album_name,
-        parsed.track_name,
-        parsed.confidence,
-        PARSER_VERSION,
-        ARCHIVE_KEY_EPOCH if source == "imported" else OWN_KEY_EPOCH,
-    ]
+# A whole batch's candidates overflow the HTTP field a parameter is sent in, so
+# the IN-list is looked up in slices and the matches unioned.
+CATALOGUE_LOOKUP_CHUNK = 4000
+
+
+def build_batch_catalogue(catalogue_client: Any, queries: list[str]) -> ArtistCatalogue:
+    """Look up only the artist keys this batch of queries could match.
+
+    The catalogue stays on disk in ClickHouse rather than in the process's
+    memory, so this runs on a small host unchanged.
+    """
+    candidates: set[str] = set()
+    for query_text in queries:
+        candidates.update(candidate_artist_keys(query_text))
+    if not candidates:
+        return ArtistCatalogue(frozenset())
+
+    known: set[str] = set()
+    candidate_list = list(candidates)
+    for start in range(0, len(candidate_list), CATALOGUE_LOOKUP_CHUNK):
+        chunk = candidate_list[start : start + CATALOGUE_LOOKUP_CHUNK]
+        result = catalogue_client.query(CATALOGUE_LOOKUP, parameters={"keys": chunk})
+        known.update(str(row[0]) for row in result.result_rows)
+
+    return ArtistCatalogue(frozenset(known))
+
+
+def _flush_batch(
+    write_client: Any, raw_batch: list[tuple[Any, ...]], catalogue: ArtistCatalogue
+) -> int:
+    rows: list[list[Any]] = []
+    for received_at, pseudonym, ticket, query_text, source in raw_batch:
+        parsed = resolve(query_text, catalogue)
+        rows.append(
+            [
+                received_at,
+                pseudonym,
+                ticket,
+                query_text,
+                parsed.artist_name,
+                parsed.album_name,
+                parsed.track_name,
+                parsed.confidence,
+                PARSER_VERSION,
+                ARCHIVE_KEY_EPOCH if source == "imported" else OWN_KEY_EPOCH,
+            ]
+        )
+    write_client.insert(TARGET_TABLE, rows, column_names=TARGET_COLUMNS, settings=INSERT_SETTINGS)
+    return len(rows)
 
 
 def reprocess(read_client: Any, write_client: Any, since: str) -> int:
     """Read the raw layer partition by partition, write the parsed layer.
 
-    Separate clients for reading and writing so an insert can run while the
-    read stream for the current partition is still open.
+    Separate clients for reading and writing so an insert (and the per-batch
+    catalogue lookup) can run while the read stream stays open.
     """
     total = 0
     dates = read_client.query(DATES_QUERY, parameters={"since": since}).result_rows
 
     for date_row in dates:
         day = date_row[0]
-        batch: list[list[Any]] = []
+        raw_batch: list[tuple[Any, ...]] = []
 
         with read_client.query_row_block_stream(
             STREAM_QUERY, parameters={"day": day, "since": since}
         ) as stream:
             for block in stream:
-                for received_at, pseudonym, ticket, query_text, source in block:
-                    batch.append(_parsed_row(received_at, pseudonym, ticket, query_text, source))
-                    if len(batch) >= READ_BATCH_SIZE:
-                        write_client.insert(
-                            TARGET_TABLE,
-                            batch,
-                            column_names=TARGET_COLUMNS,
-                            settings=INSERT_SETTINGS,
-                        )
-                        total += len(batch)
-                        batch = []
+                for row in block:
+                    raw_batch.append(tuple(row))
+                    if len(raw_batch) >= READ_BATCH_SIZE:
+                        catalogue = build_batch_catalogue(write_client, [r[3] for r in raw_batch])
+                        total += _flush_batch(write_client, raw_batch, catalogue)
+                        raw_batch = []
 
-        if batch:
-            write_client.insert(
-                TARGET_TABLE, batch, column_names=TARGET_COLUMNS, settings=INSERT_SETTINGS
-            )
-            total += len(batch)
+        if raw_batch:
+            catalogue = build_batch_catalogue(write_client, [r[3] for r in raw_batch])
+            total += _flush_batch(write_client, raw_batch, catalogue)
 
         logger.info("Parsed %d rows (through %s)", total, day)
 
     return total
+
+
+def rebuild_derived_tables(client: Any) -> None:
+    """Clear the parsed layer and aggregates before a full reparse.
+
+    A materialized view fires on every insert into the parsed layer, so
+    re-inserting without clearing would add aggregate states on top of the old
+    ones and double every count. A full reparse must start from empty.
+    """
+    for table in DERIVED_TABLES:
+        client.command(f"TRUNCATE TABLE IF EXISTS {table}")
+    logger.info("Cleared derived tables for a full rebuild")
 
 
 def main() -> int:
@@ -171,6 +224,7 @@ def main() -> int:
     arguments = sys.argv[1:]
     since = DEFAULT_SINCE
     incremental = "--incremental" in arguments
+    rebuild = "--rebuild" in arguments
     for argument in arguments:
         if argument.startswith("--since="):
             since = f"{argument.split('=', 1)[1]} 00:00:00"
@@ -180,6 +234,8 @@ def main() -> int:
     write_client = create_client(configuration)
     if incremental:
         since = resolve_incremental_since(read_client)
+    if rebuild:
+        rebuild_derived_tables(write_client)
     total = reprocess(read_client, write_client, since)
     logger.info("Done: %d rows parsed with parser version %d", total, PARSER_VERSION)
     return 0

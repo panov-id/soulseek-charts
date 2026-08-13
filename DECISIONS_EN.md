@@ -128,8 +128,24 @@ async def on_message_received(event: MessageReceivedEvent) -> None:
 
 ---
 
+## 12. Artist identification against a MusicBrainz catalogue (2026-08-13)
+
+**Decision:** the separator "artist - track" parser is replaced by matching against a catalogue of artist names. The catalogue is the `musicbrainz_artists` table in ClickHouse (2.97M distinct names from the `artist.tar.xz` dump). The resolver finds the longest known name that is a word-aligned prefix of the query; the catalogue is not held in memory — each batch does a point `IN` lookup of its prefix candidates.
+
+**Why:** the separator parser resolved 1.1% of real traffic — almost all queries carry no separator (`Skiantos MONOtono`). The catalogue raised coverage to **83%**. The `release` dump (21 GB) does not fit the jump, so track identification via MusicBrainz is not done — artist only; the track is taken as the query remainder.
+
+**How to apply:** the catalogue is built in a heavy batch (1.6 GB dump) on a large machine, and the compact result ships to ClickHouse. Parser version is bumped to 2. Accuracy (as opposed to coverage) needs its own measurement on a labelled sample — so far confirmed only by eye: the top is recognizably real (Bach, Sinatra, Eminem, Daft Punk).
+
+**Precision is an open front:** short and common words that are artists in MusicBrainz (`dj`, `all`, `la`, `die`, `music`) are rejected by a "distrust a single-token prefix shorter than 3 chars or in a stoplist" rule plus a placeholder list. This is whack-a-mole; the list will grow with observation.
+
+---
+
 ## Open questions
 
+- **Rank charts by people, not queries.** `read_artist_chart` currently ranks by search count. The data shows single-person inflation (`floopy`, `alci acosta` — 1–5 listeners but thousands of searches). Ranking by `unique_searchers` suppresses this naturally — the prototype's core lesson, "charts count people". Not done because of the epoch complication (across the boundary the people count is withheld, so ranking by null needs a fallback to searches).
+- **Identification accuracy on a labelled sample.** Coverage (83%) is measured; accuracy is not. Needs ~200 real queries labelled by hand (the user checks the doubtful ones).
+- **The jump still runs parser version 1.** The catalogue and resolver are built and verified locally; the production node needs the catalogue table transferred and a version-2 reparse.
+- **Non-music and genres-as-artists** (`techno`, `soundtrack`, series `s03e08`) are not separated in the charts.
 - **A legitimate way to register a client version.** See decision 8: there is none, and it is the only thing standing between the project and real data.
 - **Cutover from the Go collector.** The prototype runs on this same machine under the `soulseekcharts` account and keeps adding to its archive. It should be stopped at cutover and not before: until a working Python collector exists, stopping it only pauses collection. The account is reused afterwards.
 - **The prototype's pseudonymization secret.** It lives on the author's machine. Reusing the same secret would make the new storage's pseudonyms match the old archive, allowing the two collection periods to be joined. The user decides: it is a credential, and I do not touch it.
