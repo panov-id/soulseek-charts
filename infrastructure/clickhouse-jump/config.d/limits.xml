@@ -8,8 +8,12 @@
          insert + materialized-view aggregation here, so it sits at 900 MiB:
          during the bulk reprocess the collector and API are not running, and
          in steady state inserts are tiny while chart queries are capped
-         per-query in users.d. -->
-    <max_server_memory_usage>900000000</max_server_memory_usage>
+         per-query in users.d. Raised to 1.2 GiB once the MusicBrainz catalogue
+         (~3M rows) joined the reparse: reading it while two materialized views
+         aggregate needs the headroom, and the per-query cap still bounds chart
+         queries. The box is 1.9 GiB, so this is a ceiling the steady state
+         rarely approaches, not typical usage. -->
+    <max_server_memory_usage>1200000000</max_server_memory_usage>
     <max_concurrent_queries>4</max_concurrent_queries>
 
     <mark_cache_size>134217728</mark_cache_size>

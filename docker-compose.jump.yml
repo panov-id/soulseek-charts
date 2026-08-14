@@ -33,7 +33,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 1200M
+          memory: 1450M
         reservations:
           memory: 640M
     logging:

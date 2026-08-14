@@ -121,7 +121,12 @@ def resolve_incremental_since(client: Any) -> str:
 
 # A whole batch's candidates overflow the HTTP field a parameter is sent in, so
 # the IN-list is looked up in slices and the matches unioned.
-CATALOGUE_LOOKUP_CHUNK = 4000
+CATALOGUE_LOOKUP_CHUNK = 1000
+
+# Reading the ~3M-row catalogue for a scattered IN-list is what pushes a small
+# host over its memory ceiling. A single thread and a small read block bound
+# that cost; the lookup is a primary-key point query, so it stays fast.
+CATALOGUE_LOOKUP_SETTINGS = {"max_threads": 1, "max_block_size": 4096}
 
 
 def build_batch_catalogue(catalogue_client: Any, queries: list[str]) -> ArtistCatalogue:
@@ -140,7 +145,9 @@ def build_batch_catalogue(catalogue_client: Any, queries: list[str]) -> ArtistCa
     candidate_list = list(candidates)
     for start in range(0, len(candidate_list), CATALOGUE_LOOKUP_CHUNK):
         chunk = candidate_list[start : start + CATALOGUE_LOOKUP_CHUNK]
-        result = catalogue_client.query(CATALOGUE_LOOKUP, parameters={"keys": chunk})
+        result = catalogue_client.query(
+            CATALOGUE_LOOKUP, parameters={"keys": chunk}, settings=CATALOGUE_LOOKUP_SETTINGS
+        )
         known.update(str(row[0]) for row in result.result_rows)
 
     return ArtistCatalogue(frozenset(known))
@@ -170,14 +177,24 @@ def _flush_batch(
     return len(rows)
 
 
-def reprocess(read_client: Any, write_client: Any, since: str) -> int:
+EMPTY_CATALOGUE = ArtistCatalogue(frozenset())
+
+
+def reprocess(read_client: Any, write_client: Any, since: str, use_catalogue: bool = True) -> int:
     """Read the raw layer partition by partition, write the parsed layer.
 
     Separate clients for reading and writing so an insert (and the per-batch
-    catalogue lookup) can run while the read stream stays open.
+    catalogue lookup) can run while the read stream stays open. With
+    use_catalogue False the resolver falls back to the separator parser — much
+    lighter on memory, for hosts too small to hold the catalogue reprocess.
     """
     total = 0
     dates = read_client.query(DATES_QUERY, parameters={"since": since}).result_rows
+
+    def catalogue_for(rows: list[tuple[Any, ...]]) -> ArtistCatalogue:
+        if not use_catalogue:
+            return EMPTY_CATALOGUE
+        return build_batch_catalogue(write_client, [r[3] for r in rows])
 
     for date_row in dates:
         day = date_row[0]
@@ -190,13 +207,11 @@ def reprocess(read_client: Any, write_client: Any, since: str) -> int:
                 for row in block:
                     raw_batch.append(tuple(row))
                     if len(raw_batch) >= READ_BATCH_SIZE:
-                        catalogue = build_batch_catalogue(write_client, [r[3] for r in raw_batch])
-                        total += _flush_batch(write_client, raw_batch, catalogue)
+                        total += _flush_batch(write_client, raw_batch, catalogue_for(raw_batch))
                         raw_batch = []
 
         if raw_batch:
-            catalogue = build_batch_catalogue(write_client, [r[3] for r in raw_batch])
-            total += _flush_batch(write_client, raw_batch, catalogue)
+            total += _flush_batch(write_client, raw_batch, catalogue_for(raw_batch))
 
         logger.info("Parsed %d rows (through %s)", total, day)
 
@@ -225,6 +240,7 @@ def main() -> int:
     since = DEFAULT_SINCE
     incremental = "--incremental" in arguments
     rebuild = "--rebuild" in arguments
+    use_catalogue = "--no-catalogue" not in arguments
     for argument in arguments:
         if argument.startswith("--since="):
             since = f"{argument.split('=', 1)[1]} 00:00:00"
@@ -236,7 +252,7 @@ def main() -> int:
         since = resolve_incremental_since(read_client)
     if rebuild:
         rebuild_derived_tables(write_client)
-    total = reprocess(read_client, write_client, since)
+    total = reprocess(read_client, write_client, since, use_catalogue=use_catalogue)
     logger.info("Done: %d rows parsed with parser version %d", total, PARSER_VERSION)
     return 0
 
