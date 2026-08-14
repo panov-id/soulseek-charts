@@ -82,7 +82,14 @@ services:
       clickhouse:
         condition: service_healthy
     ports:
+      # Host-loopback only, for an SSH tunnel. Public exposure is deliberately
+      # absent; VPN reachability comes from the production network below.
       - "127.0.0.1:8000:8000"
+    networks:
+      # default reaches ClickHouse; vpn-production lets WireGuard peers on that
+      # environment reach the dashboard without exposing it to the internet.
+      - default
+      - vpn-production
     deploy:
       resources:
         limits:
@@ -98,3 +105,11 @@ services:
 
 volumes:
   clickhouse_data:
+
+networks:
+  default:
+  # The production WireGuard environment's existing docker network. External:
+  # this stack attaches to it, it is never created or modified here.
+  vpn-production:
+    external: true
+    name: vpn-production_default
