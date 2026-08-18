@@ -35,3 +35,7 @@ htmlcov/
 
 # Dashboard screenshots
 screenshots/
+
+# Sync runtime
+/.sync.lock
+/sync.log
