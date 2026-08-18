@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
+from clickhouse_connect.driver.exceptions import DatabaseError
 from fastapi import Depends, FastAPI, Query
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,10 +28,26 @@ from soulseek_charts.charts import repository
 from soulseek_charts.charts.periods import ChartPeriod, resolve_period
 from soulseek_charts.charts.repository import MAXIMUM_PAGE_SIZE
 
+logger = logging.getLogger("soulseek_charts.api")
+
 DEFAULT_PAGE_SIZE = 50
 DEFAULT_HISTORY_DAYS = 90
 
 STATIC_DIRECTORY = Path(__file__).parent.parent / "web" / "static"
+
+
+def chart_or_empty[T](producer: Callable[[], list[T]]) -> list[T]:
+    """Run a chart query, degrading to an empty result instead of a 500.
+
+    A query too heavy for the host (ClickHouse raises a memory error) must not
+    break the whole page: the section renders empty and the rest still loads.
+    """
+    try:
+        return producer()
+    except DatabaseError as error:
+        logger.warning("Chart query failed, serving an empty chart: %s", error)
+        return []
+
 
 application = FastAPI(
     title="soulseek-charts",
@@ -130,7 +149,9 @@ def read_artist_chart(
 
     entries = cache.get_or_call(
         cache_key,
-        lambda: repository.read_artist_chart(get_client(), window, page_size, offset),
+        lambda: chart_or_empty(
+            lambda: repository.read_artist_chart(get_client(), window, page_size, offset)
+        ),
     )
 
     return ChartModel(
@@ -166,7 +187,9 @@ def read_track_chart(
 
     entries = cache.get_or_call(
         cache_key,
-        lambda: repository.read_track_chart(get_client(), window, page_size, offset),
+        lambda: chart_or_empty(
+            lambda: repository.read_track_chart(get_client(), window, page_size, offset)
+        ),
     )
 
     return ChartModel(

@@ -9,6 +9,12 @@
             <max_memory_usage>300000000</max_memory_usage>
             <max_execution_time>30</max_execution_time>
             <max_bytes_before_external_group_by>200000000</max_bytes_before_external_group_by>
+            <!-- The track chart joins current vs previous period over ~1.5M
+                 aggregate rows, which overflows the per-query cap as an
+                 in-memory hash join. grace_hash spills to disk instead, so the
+                 join stays bounded on this small host. -->
+            <join_algorithm>grace_hash</join_algorithm>
+            <max_bytes_in_join>150000000</max_bytes_in_join>
         </default>
     </profiles>
 </clickhouse>

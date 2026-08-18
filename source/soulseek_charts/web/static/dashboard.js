@@ -407,27 +407,35 @@ function periodControls(activePeriod) {
 async function renderCharts(view, period) {
     view.replaceChildren(periodControls(period), element("p", { class: "empty", text: "Loading…" }));
 
-    const [artistChart, trackChart] = await Promise.all([
+    // allSettled, not all: one chart failing to load must not blank the page.
+    const [artistResult, trackResult] = await Promise.allSettled([
         fetchJson(`/api/v1/charts/artists?period=${period}&page_size=50`),
         fetchJson(`/api/v1/charts/tracks?period=${period}&page_size=50`),
     ]);
+    const artistChart = artistResult.status === "fulfilled" ? artistResult.value : null;
+    const trackChart = trackResult.status === "fulfilled" ? trackResult.value : null;
+
+    const emptyOrError = (chart) =>
+        chart === null
+            ? element("p", { class: "empty", text: "Temporarily unavailable — too heavy to load right now." })
+            : element("p", { class: "empty", text: "Nothing collected for this period yet." });
 
     const artistCard = element("section", { class: "card" }, [
         element("h2", { text: "Artists" }),
         element("p", {
             class: "caption",
-            text: `${artistChart.period_start.slice(0, 10)} — ranked by searches, compared with ${PREVIOUS_LABELS[period]}`,
+            text: `Ranked by searches, compared with ${PREVIOUS_LABELS[period]}`,
         }),
     ]);
     artistCard.append(
-        artistChart.entries.length
+        artistChart && artistChart.entries.length
             ? chartTable(artistChart.entries, {
                   nameHeader: "Artist",
                   previousLabel: PREVIOUS_LABELS[period],
                   name: (entry) => entry.artist_name,
                   link: (entry) => `#/artist/${encodeURIComponent(entry.artist_name)}`,
               })
-            : element("p", { class: "empty", text: "Nothing collected for this period yet." })
+            : emptyOrError(artistChart)
     );
 
     const trackCard = element("section", { class: "card" }, [
@@ -438,14 +446,14 @@ async function renderCharts(view, period) {
         }),
     ]);
     trackCard.append(
-        trackChart.entries.length
+        trackChart && trackChart.entries.length
             ? chartTable(trackChart.entries, {
                   nameHeader: "Track",
                   previousLabel: PREVIOUS_LABELS[period],
                   name: (entry) => `${entry.artist_name} — ${entry.track_name}`,
                   link: (entry) => `#/artist/${encodeURIComponent(entry.artist_name)}`,
               })
-            : element("p", { class: "empty", text: "Nothing collected for this period yet." })
+            : emptyOrError(trackChart)
     );
 
     view.replaceChildren(periodControls(period), artistCard, trackCard);
