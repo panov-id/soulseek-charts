@@ -81,13 +81,10 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
-    ports:
-      # Host-loopback only, for an SSH tunnel. Public exposure is deliberately
-      # absent; VPN reachability comes from the production network below.
-      - "127.0.0.1:8000:8000"
+    # No host port: the API stays internal. The public edge is the web service
+    # below; WireGuard peers reach the API directly on the vpn-production
+    # network (trusted, so they skip the rate limiter).
     networks:
-      # default reaches ClickHouse; vpn-production lets WireGuard peers on that
-      # environment reach the dashboard without exposing it to the internet.
       - default
       - vpn-production
     deploy:
@@ -97,6 +94,33 @@ services:
           memory: 200M
         reservations:
           memory: 96M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  web:
+    # Public edge: the only service bound to the internet. Rate-limits per IP
+    # and proxies to the API, which is not published. See infrastructure/web.
+    image: nginx:1.27-alpine
+    container_name: soulseek_charts_web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./infrastructure/web/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - default
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 48M
+        reservations:
+          memory: 16M
     logging:
       driver: json-file
       options:
